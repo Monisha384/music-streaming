@@ -1,0 +1,147 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useSyncExternalStore,FormEvent} from "react";
+
+interface Song {
+  _id: string;
+  title: string;
+  artist: string;
+  image?: string;
+  audio?: string;
+}
+
+function subscribeToStorage(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+export default function AdminDashboard() {
+  const router = useRouter();
+  const isAdmin = useSyncExternalStore(
+    subscribeToStorage,
+    () => localStorage.getItem("musicverse-admin") === "true",
+    () => false
+  );
+
+  const [songs, setSongs] = useState<Song[]>([]);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch("/api/auth/songs")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setSongs(d.songs); });
+  }, [isAdmin]);
+
+  async function handleUpload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setError("");
+    setUploading(true);
+
+    try {
+      const res = await fetch("/api/auth/songs", {
+        method: "POST",
+        body: new FormData(form),
+      });
+
+      const data = await res.json();
+      setUploading(false);
+
+      if (!data.success) {
+        setError(data.message || "Upload failed");
+        return;
+      }
+
+      setSongs((prev) => [data.song, ...prev]);
+      form.reset();
+    } catch {
+      setUploading(false);
+      setError("Something went wrong");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    await fetch(`/api/auth/songs/${id}`, { method: "DELETE" });
+    setSongs((prev) => prev.filter((s) => s._id !== id));
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("musicverse-admin");
+    localStorage.removeItem("musicverse-user");
+    window.dispatchEvent(new Event("storage"));
+    router.push("/login");
+  }
+
+  if (!isAdmin) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black text-white">
+        <p className="text-zinc-400">Checking admin access...</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-black px-6 py-12 text-white">
+      <section className="mx-auto max-w-7xl">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.25em] text-amber-200">Admin panel</p>
+            <h1 className="mt-3 text-5xl font-bold">Song Upload Dashboard</h1>
+          </div>
+          <button onClick={handleLogout} className="rounded-full border border-white/20 px-5 py-3 font-semibold transition hover:border-red-400 hover:text-red-400">
+            Logout
+          </button>
+        </div>
+
+        <div className="mt-10 grid gap-8 lg:grid-cols-[420px_1fr]">
+          <form onSubmit={handleUpload} className="rounded-lg bg-zinc-900 p-6">
+            <h2 className="text-2xl font-bold">Upload Song</h2>
+            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+            <input name="title" required placeholder="Song title" className="mt-6 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <input name="artist" required placeholder="Artist name" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <input name="image" placeholder="Image URL" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <input name="album" placeholder="Album (optional)" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <select name="language" className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
+              {["Tamil","English","Hindi","Telugu","Malayalam","Other"].map((l) => <option key={l}>{l}</option>)}
+            </select>
+            <select name="genre" className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
+              {["Melody","Folk","Pop","Rock","Classical","Mass","Romantic","Other"].map((g) => <option key={g}>{g}</option>)}
+            </select>
+            <input type="file" name="audio" accept=".mp3,audio/*" required className="mt-4 w-full rounded bg-zinc-800 p-3" />
+            <button type="submit" disabled={uploading} className="mt-6 w-full rounded bg-amber-300 p-3 font-semibold text-black transition hover:bg-amber-200 disabled:opacity-50">
+              {uploading ? "Uploading..." : "Add Song"}
+            </button>
+          </form>
+
+          <section className="rounded-lg bg-zinc-900 p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <h2 className="text-2xl font-bold">Uploaded Songs</h2>
+              <Link href="/songs" className="text-sm font-semibold text-emerald-300 hover:text-emerald-200">
+                View public songs
+              </Link>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              {songs.length === 0 && <p className="text-zinc-400">No songs yet.</p>}
+              {songs.map((song) => (
+                <div key={song._id} className="flex items-center justify-between rounded-lg border border-white/10 bg-black/40 p-4">
+                  <div>
+                    <p className="text-lg font-semibold">{song.title}</p>
+                    <p className="text-zinc-400">{song.artist}</p>
+                  </div>
+                  <button onClick={() => handleDelete(song._id)} className="rounded px-3 py-1 text-sm text-red-400 hover:bg-red-400/10">
+                    Delete
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  );
+}
