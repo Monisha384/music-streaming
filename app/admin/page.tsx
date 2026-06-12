@@ -28,6 +28,7 @@ export default function AdminDashboard() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [uploading, setUploading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  const [editingSong, setEditingSong] = useState<Song | null>(null);
 
   const [artistRequests, setArtistRequests] = useState<any[]>([]);
 
@@ -49,20 +50,37 @@ export default function AdminDashboard() {
     setUploading(true);
 
     try {
-      const res = await fetch("/api/auth/songs", {
-        method: "POST",
-        body: new FormData(form),
+      const url = editingSong ? `/api/auth/songs/${editingSong._id}` : "/api/auth/songs";
+      const method = editingSong ? "PUT" : "POST";
+
+      let body: any;
+      if (editingSong) {
+        const formData = new FormData(form);
+        body = JSON.stringify(Object.fromEntries(formData.entries()));
+      } else {
+        body = new FormData(form);
+      }
+
+      const res = await fetch(url, {
+        method,
+        body,
+        headers: editingSong ? { "Content-Type": "application/json" } : undefined,
       });
 
       const data = await res.json();
       setUploading(false);
 
       if (!data.success) {
-        setError(data.message || "Upload failed");
+        setError(data.message || "Action failed");
         return;
       }
 
-      setSongs((prev) => [data.song, ...prev]);
+      if (editingSong) {
+        setSongs((prev) => prev.map((s) => (s._id === data.song._id ? data.song : s)));
+        setEditingSong(null);
+      } else {
+        setSongs((prev) => [data.song, ...prev]);
+      }
       form.reset();
     } catch {
       setUploading(false);
@@ -105,21 +123,28 @@ export default function AdminDashboard() {
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[420px_1fr]">
           <form onSubmit={handleUpload} className="rounded-lg bg-zinc-900 p-6">
-            <h2 className="text-2xl font-bold">Upload Song</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">{editingSong ? "Edit Song" : "Upload Song"}</h2>
+              {editingSong && (
+                <button onClick={() => setEditingSong(null)} type="button" className="text-xs text-zinc-400 hover:text-white">CANCEL</button>
+              )}
+            </div>
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-            <input name="title" required placeholder="Song title" className="mt-6 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
-            <input name="artist" required placeholder="Artist name" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
-            <input name="image" placeholder="Image URL" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
-            <input name="album" placeholder="Album (optional)" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
-            <select name="language" className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
+            <input name="title" defaultValue={editingSong?.title || ""} required placeholder="Song title" className="mt-6 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <input name="artist" defaultValue={editingSong?.artist || ""} required placeholder="Artist name" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <input name="image" defaultValue={editingSong?.image || ""} placeholder="Image URL" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <input name="album" defaultValue={(editingSong as any)?.album || ""} placeholder="Album (optional)" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
+            <select name="language" defaultValue={(editingSong as any)?.language || "Tamil"} className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
               {["Tamil", "English", "Hindi", "Telugu", "Malayalam", "Other"].map((l) => <option key={l}>{l}</option>)}
             </select>
-            <select name="genre" className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
+            <select name="genre" defaultValue={(editingSong as any)?.genre || "Melody"} className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
               {["Melody", "Folk", "Pop", "Rock", "Classical", "Mass", "Romantic", "Other"].map((g) => <option key={g}>{g}</option>)}
             </select>
-            <input type="file" name="audio" accept=".mp3,audio/*" required className="mt-4 w-full rounded bg-zinc-800 p-3" />
+            {!editingSong && (
+              <input type="file" name="audio" accept=".mp3,audio/*" required className="mt-4 w-full rounded bg-zinc-800 p-3" />
+            )}
             <button type="submit" disabled={uploading} className="mt-6 w-full rounded bg-amber-300 p-3 font-semibold text-black transition hover:bg-amber-200 disabled:opacity-50">
-              {uploading ? "Uploading..." : "Add Song"}
+              {uploading ? (editingSong ? "Saving..." : "Uploading...") : (editingSong ? "Update Song" : "Add Song")}
             </button>
           </form>
 
@@ -139,9 +164,14 @@ export default function AdminDashboard() {
                     <p className="text-lg font-semibold">{song.title}</p>
                     <p className="text-zinc-400">{song.artist}</p>
                   </div>
-                  <button onClick={() => handleDelete(song._id)} className="rounded px-3 py-1 text-sm text-red-400 hover:bg-red-400/10">
-                    Delete
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setEditingSong(song)} className="rounded px-3 py-1 text-sm text-amber-200 hover:bg-amber-200/10">
+                      Edit
+                    </button>
+                    <button onClick={() => handleDelete(song._id)} className="rounded px-3 py-1 text-sm text-red-400 hover:bg-red-400/10">
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
