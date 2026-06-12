@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect, useSyncExternalStore } from "react";
 
-const openRoutes = ["/login", "/register"];
+const openRoutes = ["/", "/login", "/register"];
 
 function subscribeToStorage(callback: () => void) {
   window.addEventListener("storage", callback);
@@ -11,11 +11,11 @@ function subscribeToStorage(callback: () => void) {
 }
 
 function getUserAccess() {
-  return localStorage.getItem("musicverse-user") === "true";
+  return localStorage.getItem("melodystream-user") === "true";
 }
 
 function getAdminAccess() {
-  return localStorage.getItem("musicverse-admin") === "true";
+  return localStorage.getItem("melodystream-admin") === "true";
 }
 
 function getBrowserReady() {
@@ -30,8 +30,8 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isOpenRoute = openRoutes.includes(pathname);
-  const isAdminRoute = pathname.startsWith("/admin");
+  const isOpenRoute = pathname ? openRoutes.includes(pathname) : false;
+  const isAdminRoute = pathname ? pathname.startsWith("/admin") : false;
   const browserReady = useSyncExternalStore(subscribeToStorage, getBrowserReady, getServerSnapshot);
   const hasUserAccess = useSyncExternalStore(subscribeToStorage, getUserAccess, getServerSnapshot);
   const hasAdminAccess = useSyncExternalStore(subscribeToStorage, getAdminAccess, getServerSnapshot);

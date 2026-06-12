@@ -2,12 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 
 export default function Login() {
   const router = useRouter();
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    const isAdmin = localStorage.getItem("melodystream-admin") === "true";
+    const isUser = localStorage.getItem("melodystream-user") === "true";
+    if (isAdmin) {
+      router.push("/admin");
+    } else if (isUser) {
+      router.push("/songs");
+    }
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -32,14 +42,15 @@ export default function Login() {
       return;
     }
 
-    localStorage.setItem("musicverse-email", email);
+    localStorage.setItem("melodystream-email", email);
+    localStorage.setItem("melodystream-user-info", JSON.stringify(data.user));
     if (data.user.role === "admin") {
-      localStorage.setItem("musicverse-admin", "true");
-      localStorage.setItem("musicverse-user", "true");
+      localStorage.setItem("melodystream-admin", "true");
+      localStorage.setItem("melodystream-user", "true");
       window.dispatchEvent(new Event("storage"));
       router.push("/admin");
     } else {
-      localStorage.setItem("musicverse-user", "true");
+      localStorage.setItem("melodystream-user", "true");
       window.dispatchEvent(new Event("storage"));
       router.push("/songs");
     }

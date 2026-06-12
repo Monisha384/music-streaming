@@ -1,0 +1,81 @@
+﻿[
+  {
+    "_id": "6a2682cd219ebff9d840dcfc",
+    "name": "Monisha",
+    "email": "monisha@gmail.com",
+    "password": "123456",
+    "role": "user",
+    "createdAt": "2026-06-08T08:52:29.981Z",
+    "updatedAt": "2026-06-08T08:52:29.981Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a27b9d637a14e5c8d4aad60",
+    "name": "Moni",
+    "email": "moni@gmail.com",
+    "password": "123456",
+    "role": "user",
+    "createdAt": "2026-06-09T06:59:34.551Z",
+    "updatedAt": "2026-06-11T10:09:17.889Z",
+    "__v": 17,
+    "avatar": "",
+    "bio": "",
+    "favoriteArtists": [],
+    "favorites": [
+      "6a2906a3c18b2bade91f0cf7",
+      "6a2793be786c55320d82e4f3",
+      "6a278f4a786c55320d82e4f2"
+    ],
+    "playlists": [
+      {
+        "name": "Melody songs",
+        "songs": [],
+        "_id": "6a2a5181061a6ad6b1bdb4dd",
+        "createdAt": "2026-06-11T06:11:13.156Z"
+      }
+    ],
+    "recentlyPlayed": [
+      {
+        "song": "6a27965a786c55320d82e4f4",
+        "playedAt": "2026-06-11T03:39:33.107Z",
+        "_id": "6a2a2df5061a6ad6b1bdb45b"
+      },
+      {
+        "song": "6a27aee537a14e5c8d4aad5f",
+        "playedAt": "2026-06-11T03:39:44.143Z",
+        "_id": "6a2a2e00061a6ad6b1bdb45f"
+      },
+      {
+        "song": "6a2906a3c18b2bade91f0cf7",
+        "playedAt": "2026-06-11T06:08:36.916Z",
+        "_id": "6a2a50e4061a6ad6b1bdb478"
+      },
+      {
+        "song": "6a2793be786c55320d82e4f3",
+        "playedAt": "2026-06-11T06:08:44.966Z",
+        "_id": "6a2a50ec061a6ad6b1bdb486"
+      },
+      {
+        "song": "6a278f4a786c55320d82e4f2",
+        "playedAt": "2026-06-11T06:08:52.667Z",
+        "_id": "6a2a50f4061a6ad6b1bdb495"
+      }
+    ]
+  },
+  {
+    "_id": "6a297182c3030e3e719cd4fc",
+    "name": "Test User",
+    "email": "test@example.com",
+    "password": "password123",
+    "role": "user",
+    "avatar": "",
+    "bio": "",
+    "favorites": [],
+    "favoriteArtists": [],
+    "playlists": [],
+    "recentlyPlayed": [],
+    "createdAt": "2026-06-10T14:15:30.175Z",
+    "updatedAt": "2026-06-10T14:15:30.175Z",
+    "__v": 0
+  }
+]

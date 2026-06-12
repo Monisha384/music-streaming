@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useRef, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useRef, useState, useCallback, ReactNode, useEffect } from "react";
 
 export interface Song {
   _id: string;
@@ -38,6 +38,8 @@ interface PlayerContextType {
   toggleShuffle: () => void;
   setCurrentTime: (t: number) => void;
   setDuration: (d: number) => void;
+  isPremium: boolean;
+  setIsPremium: (p: boolean) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | null>(null);
@@ -53,6 +55,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isShuffled, setIsShuffled] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isPremium, setIsPremium] = useState(false);
+
+  useEffect(() => {
+    // Check if user is premium in localStorage
+    const p = localStorage.getItem("melodystream-premium") === "true";
+    setIsPremium(p);
+  }, []);
 
   const playSong = useCallback((song: Song, newQueue?: Song[]) => {
     setCurrentSong(song);
@@ -61,25 +70,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       if (audioRef.current) {
         audioRef.current.src = song.audio ?? "";
-        audioRef.current.play().catch(() => {});
+        audioRef.current.play().catch(() => { });
       }
     }, 50);
 
     // Track play count & recently played
+    const email = localStorage.getItem("melodystream-email");
     fetch("/api/auth/songs/play", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ songId: song._id }),
-    }).catch(() => {});
-
-    const email = localStorage.getItem("musicverse-email");
-    if (email) {
-      fetch("/api/auth/recently-played", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, songId: song._id }),
-      }).catch(() => {});
-    }
+      body: JSON.stringify({ songId: song._id, email }),
+    }).catch(() => { });
   }, []);
 
   const togglePlay = useCallback(() => {
@@ -87,7 +88,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play().catch(() => {});
+      audioRef.current.play().catch(() => { });
     }
     setIsPlaying((p) => !p);
   }, [isPlaying]);
@@ -99,17 +100,42 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (isShuffled) {
       nextIdx = Math.floor(Math.random() * queue.length);
     } else {
-      nextIdx = (idx + 1) % queue.length;
+      nextIdx = idx + 1;
     }
-    playSong(queue[nextIdx], queue);
-  }, [currentSong, queue, isShuffled, playSong]);
+
+    if (nextIdx < queue.length) {
+      playSong(queue[nextIdx]);
+    } else if (repeatMode === "all" && queue.length > 0) {
+      playSong(queue[0]);
+    } else {
+      setIsPlaying(false);
+    }
+  }, [currentSong, queue, isShuffled, playSong, repeatMode]);
 
   const prevSong = useCallback(() => {
     if (!currentSong || queue.length === 0) return;
     const idx = queue.findIndex((s) => s._id === currentSong._id);
-    const prevIdx = (idx - 1 + queue.length) % queue.length;
-    playSong(queue[prevIdx], queue);
+    let prevIdx = (idx - 1 + queue.length) % queue.length;
+    playSong(queue[prevIdx]);
   }, [currentSong, queue, playSong]);
+
+  useEffect(() => {
+    if (currentSong) {
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentSong.title,
+          artist: currentSong.artist,
+          album: currentSong.album || "",
+          artwork: [{ src: currentSong.image || "/logo.png", sizes: "512x512", type: "image/png" }],
+        });
+
+        navigator.mediaSession.setActionHandler("play", () => togglePlay());
+        navigator.mediaSession.setActionHandler("pause", () => togglePlay());
+        navigator.mediaSession.setActionHandler("nexttrack", () => nextSong());
+        navigator.mediaSession.setActionHandler("previoustrack", () => prevSong());
+      }
+    }
+  }, [currentSong, togglePlay, nextSong, prevSong]);
 
   const setVolume = useCallback((v: number) => {
     setVolumeState(v);
@@ -134,6 +160,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         playSong, togglePlay, nextSong, prevSong,
         setVolume, toggleMute, setRepeatMode, toggleShuffle,
         setCurrentTime, setDuration,
+        isPremium, setIsPremium,
       }}
     >
       <audio
@@ -142,7 +169,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
         onEnded={() => {
           if (repeatMode === "one") {
-            audioRef.current?.play().catch(() => {});
+            audioRef.current?.play().catch(() => { });
           } else if (repeatMode === "all" || isShuffled) {
             nextSong();
           } else {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { usePlayer, Song } from "@/context/PlayerContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -21,8 +22,8 @@ function SongRow({ song, onPlay, isDark }: { song: Song; onPlay: (s: Song) => vo
     <div
       onClick={() => onPlay(song)}
       className={`flex cursor-pointer items-center gap-4 rounded-lg p-3 transition ${isActive
-          ? "bg-emerald-400/10 ring-1 ring-emerald-400"
-          : isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"
+        ? "bg-emerald-400/10 ring-1 ring-emerald-400"
+        : isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100"
         }`}
     >
       <div className="relative flex-shrink-0">
@@ -47,19 +48,46 @@ function SongRow({ song, onPlay, isDark }: { song: Song; onPlay: (s: Song) => vo
 }
 
 export default function Home() {
+  const router = useRouter();
   const { playSong } = usePlayer();
   const { isDark } = useTheme();
   const [trending, setTrending] = useState<Song[]>([]);
   const [recent, setRecent] = useState<Song[]>([]);
+  const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
 
   useEffect(() => {
+    // We allow users to see the landing page even if logged in
+    /*
+    const isAdmin = localStorage.getItem("melodystream-admin") === "true";
+    const isUser = localStorage.getItem("melodystream-user") === "true";
+    if (isAdmin) {
+      router.push("/admin");
+      return;
+    } else if (isUser) {
+      router.push("/songs");
+      return;
+    }
+    */
+
     fetch("/api/auth/songs?sort=trending")
       .then((r) => r.json())
       .then((d) => { if (d.success) setTrending(d.songs.slice(0, 5)); });
     fetch("/api/auth/songs?sort=recent")
       .then((r) => r.json())
       .then((d) => { if (d.success) setRecent(d.songs.slice(0, 5)); });
-  }, []);
+
+    const user = JSON.parse(localStorage.getItem("melodystream-user") || "{}");
+    const email = localStorage.getItem("melodystream-email");
+    if (email) {
+      fetch(`/api/auth/recently-played?email=${email}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setRecentlyPlayed(data.history.map((h: any) => h.song));
+          }
+        });
+    }
+  }, [router]);
 
   const sectionBg = isDark ? "bg-zinc-950" : "bg-zinc-100";
   const cardBg = isDark ? "bg-zinc-900" : "bg-white shadow";
@@ -93,8 +121,35 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Recently Played */}
+      {recentlyPlayed.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 py-12">
+          <div className={`rounded-xl p-6 ${cardBg}`}>
+            <h2 className="mb-6 text-2xl font-bold">🕒 Recently Played</h2>
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+              {recentlyPlayed.slice(0, 5).map((s) => (
+                <div key={s._id} onClick={() => playSong(s)} className="group cursor-pointer">
+                  <div className="relative aspect-square overflow-hidden rounded-xl">
+                    <img src={s.image} alt={s.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition duration-300 group-hover:opacity-100">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-400 text-black shadow-xl">
+                        <span className="ml-1 text-xl">▶</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <p className="truncate font-semibold">{s.title}</p>
+                    <p className={`truncate text-sm ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>{s.artist}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Trending + Recent */}
-      <section className="mx-auto max-w-7xl px-6 py-16">
+      <section className="mx-auto max-w-7xl px-6 py-8">
         <div className="grid gap-8 md:grid-cols-2">
           <div className={`rounded-xl p-6 ${cardBg}`}>
             <div className="mb-4 flex items-center justify-between">
@@ -121,26 +176,32 @@ export default function Home() {
       </section>
 
       {/* Artists */}
-      <section className={`${sectionBg} px-6 py-16`}>
+      <section className={`${sectionBg} px-6 py-20`}>
         <div className="mx-auto max-w-7xl">
-          <div className="mb-8 flex items-end justify-between">
-            <h2 className="text-3xl font-bold">Top Artists</h2>
-            <Link href="/artists" className="text-sm font-semibold text-emerald-400 hover:text-emerald-300">View all</Link>
+          <div className="mb-10 flex items-end justify-between">
+            <div>
+              <h2 className="text-3xl font-black">Top Artists</h2>
+              <p className={`mt-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>The most streamed creators on MelodyStream</p>
+            </div>
+            <Link href="/artists" className="rounded-full border border-emerald-400/20 px-4 py-2 text-sm font-semibold text-emerald-400 transition hover:bg-emerald-400/10">
+              View all
+            </Link>
           </div>
-          <div className="grid gap-6 sm:grid-cols-3 md:grid-cols-6">
+          <div className="grid gap-8 sm:grid-cols-3 md:grid-cols-6 text-center">
             {topArtists.map((a) => (
-              <Link href={`/songs?search=${encodeURIComponent(a.name)}`} key={a.name} className="text-center group">
-                <img src={a.image} alt={a.name} className="mx-auto mb-3 h-24 w-24 rounded-full object-cover ring-2 ring-white/10 group-hover:ring-emerald-400 transition" />
-                <p className="text-sm font-medium">{a.name}</p>
+              <Link href={`/songs?search=${encodeURIComponent(a.name)}`} key={a.name} className="group">
+                <div className="relative mx-auto mb-4 h-32 w-32 overflow-hidden rounded-full ring-4 ring-white/5 transition duration-300 group-hover:ring-emerald-400">
+                  <img src={a.image} alt={a.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+                </div>
+                <p className="font-bold">{a.name}</p>
+                <p className={`text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>Artist</p>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <footer className={`py-8 text-center text-sm ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>
-        © 2026 MusicVerse. All Rights Reserved.
-      </footer>
+    
     </main>
   );
 }

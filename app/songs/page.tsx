@@ -26,9 +26,37 @@ function HeartButton({ song, favorites, onToggle }: { song: Song; favorites: str
   );
 }
 
-function SongCard({ song, favorites, onToggleFav, onPlay, isDark }: {
+function AddToPlaylistModal({ song, playlists, onClose, onAdd, isDark }: {
+  song: Song; playlists: any[]; onClose: () => void; onAdd: (playlistId: string) => void; isDark: boolean;
+}) {
+  const box = isDark ? "bg-zinc-900 text-white" : "bg-white text-zinc-900";
+  const hover = isDark ? "hover:bg-zinc-800" : "hover:bg-zinc-100";
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div className={`w-full max-w-xs rounded-xl shadow-2xl p-4 ${box}`} onClick={(e) => e.stopPropagation()}>
+        <h3 className="mb-4 text-center font-bold">Add to Playlist</h3>
+        <div className="max-h-60 overflow-y-auto space-y-1">
+          {playlists.length === 0 && <p className="text-sm text-center text-zinc-500 py-4">No playlists found.</p>}
+          {playlists.map((p) => (
+            <button
+              key={p._id}
+              onClick={() => onAdd(p._id)}
+              className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${hover}`}
+            >
+              📁 {p.name}
+            </button>
+          ))}
+        </div>
+        <button onClick={onClose} className="mt-4 w-full rounded-lg py-2 text-sm text-zinc-500 hover:text-white transition">Close</button>
+      </div>
+    </div>
+  );
+}
+
+function SongCard({ song, favorites, onToggleFav, onAddToPlaylist, onPlay, isDark }: {
   song: Song; favorites: string[];
   onToggleFav: (id: string) => void;
+  onAddToPlaylist: (song: Song) => void;
   onPlay: (song: Song) => void;
   isDark: boolean;
 }) {
@@ -62,7 +90,16 @@ function SongCard({ song, favorites, onToggleFav, onPlay, isDark }: {
             <p className={`truncate text-sm ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>{song.artist}</p>
             {song.genre && <span className={`mt-1 inline-block text-xs ${isDark ? "text-zinc-500" : "text-zinc-400"}`}>{song.genre}</span>}
           </div>
-          <HeartButton song={song} favorites={favorites} onToggle={onToggleFav} />
+          <div className="flex flex-col items-center gap-2">
+            <HeartButton song={song} favorites={favorites} onToggle={onToggleFav} />
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAddToPlaylist(song); }}
+              className="text-lg text-zinc-500 hover:text-emerald-400 transition"
+              title="Add to playlist"
+            >
+              +
+            </button>
+          </div>
         </div>
         {song.playCount !== undefined && (
           <p className={`mt-2 text-xs ${isDark ? "text-zinc-600" : "text-zinc-400"}`}>▶ {song.playCount} plays</p>
@@ -79,15 +116,15 @@ function SongsContent() {
 
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState(searchParams.get("search") ?? "");
+  const [search, setSearch] = useState(searchParams?.get("search") ?? "");
   const [language, setLanguage] = useState("All");
   const [genre, setGenre] = useState("All");
   const [sort, setSort] = useState("recent");
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "favorites" | "recent">("all");
-
-  const email = typeof window !== "undefined" ? localStorage.getItem("musicverse-email") : null;
+  const [showAddToPlaylist, setShowAddToPlaylist] = useState<Song | null>(null);
 
   const fetchSongs = useCallback(() => {
     setLoading(true);
@@ -103,20 +140,47 @@ function SongsContent() {
       .finally(() => setLoading(false));
   }, [search, language, genre, sort]);
 
-  useEffect(() => { fetchSongs(); }, [fetchSongs]);
+  useEffect(() => {
+    fetchSongs();
+    const email = typeof window !== "undefined" ? localStorage.getItem("melodystream-email") : null;
+    if (email) {
+      fetch(`/api/auth/user-playlists?email=${email}`)
+        .then((r) => r.json())
+        .then((d) => { if (d.success) setPlaylists(d.playlists || []); });
+    }
+  }, [fetchSongs]);
 
   useEffect(() => {
-    if (!email) return;
+    const email = typeof window !== "undefined" ? localStorage.getItem("melodystream-email") : null;
+    if (!email) {
+      const localFavs = JSON.parse(localStorage.getItem("melodystream-guest-favorites") || "[]");
+      setFavorites(localFavs);
+      return;
+    }
     fetch(`/api/auth/favorites?email=${email}`)
       .then((r) => r.json())
-      .then((d) => { if (d.success) setFavorites(d.favorites.map((s: Song) => s._id ?? s)); });
+      .then((d) => {
+        if (d.success && d.favorites) {
+          // Filter out nulls in case of soft-deleted/missing songs
+          setFavorites(d.favorites.map((s: any) => (s && typeof s === 'object' ? s._id : s)).filter(Boolean));
+        }
+      });
     fetch(`/api/auth/recently-played?email=${email}`)
       .then((r) => r.json())
       .then((d) => { if (d.success) setRecentlyPlayed(d.history.map((h: { song: Song }) => h.song).filter(Boolean)); });
-  }, [email]);
+  }, []);
 
   function handleToggleFav(songId: string) {
-    if (!email) return;
+    const email = typeof window !== "undefined" ? localStorage.getItem("melodystream-email") : null;
+    if (!email) {
+      const localFavs = JSON.parse(localStorage.getItem("melodystream-guest-favorites") || "[]");
+      const idx = localFavs.indexOf(songId);
+      if (idx > -1) localFavs.splice(idx, 1);
+      else localFavs.push(songId);
+      localStorage.setItem("melodystream-guest-favorites", JSON.stringify(localFavs));
+      setFavorites([...localFavs]);
+      return;
+    }
     fetch("/api/auth/favorites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -130,6 +194,20 @@ function SongsContent() {
     playSong(song, songs);
   }
 
+  async function handleAddToPlaylist(playlistId: string) {
+    if (!showAddToPlaylist) return;
+    const res = await fetch(`/api/auth/user-playlists/${playlistId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ songId: showAddToPlaylist._id, action: "add" }),
+    });
+    const d = await res.json();
+    if (d.success) {
+      alert(`Added ${showAddToPlaylist.title} to playlist!`);
+      setShowAddToPlaylist(null);
+    }
+  }
+
   const bg = isDark ? "min-h-screen bg-black text-white" : "min-h-screen bg-zinc-50 text-zinc-900";
   const inputBg = isDark ? "bg-zinc-800 text-white placeholder-zinc-500 ring-white/10" : "bg-white text-zinc-900 placeholder-zinc-400 ring-zinc-200";
   const selectBg = isDark ? "bg-zinc-800 text-white" : "bg-white text-zinc-900 border border-zinc-200";
@@ -139,8 +217,8 @@ function SongsContent() {
   const displayedSongs = activeTab === "favorites"
     ? songs.filter((s) => favorites.includes(s._id))
     : activeTab === "recent"
-    ? recentlyPlayed
-    : songs;
+      ? recentlyPlayed
+      : songs;
 
   const trending = [...songs].sort((a, b) => (b.playCount ?? 0) - (a.playCount ?? 0)).slice(0, 4);
   const topRated = [...songs].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 4);
@@ -184,9 +262,9 @@ function SongsContent() {
         {/* Sections (only in All tab with no filters) */}
         {activeTab === "all" && !search && language === "All" && genre === "All" && (
           <>
-            <Section title="🔥 Trending Songs" songs={trending} favorites={favorites} onToggleFav={handleToggleFav} onPlay={handlePlay} isDark={isDark} />
-            <Section title="⭐ Top Rated" songs={topRated} favorites={favorites} onToggleFav={handleToggleFav} onPlay={handlePlay} isDark={isDark} />
-            <Section title="🆕 Recently Added" songs={recentlyAdded} favorites={favorites} onToggleFav={handleToggleFav} onPlay={handlePlay} isDark={isDark} />
+            <Section title="🔥 Trending Songs" songs={trending} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
+            <Section title="⭐ Top Rated" songs={topRated} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
+            <Section title="🆕 Recently Added" songs={recentlyAdded} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
             <h2 className="mt-10 mb-4 text-2xl font-bold">All Songs</h2>
           </>
         )}
@@ -199,17 +277,28 @@ function SongsContent() {
 
         <div className="mt-4 grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {displayedSongs.map((song) => (
-            <SongCard key={song._id} song={song} favorites={favorites} onToggleFav={handleToggleFav} onPlay={handlePlay} isDark={isDark} />
+            <SongCard key={song._id} song={song} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
           ))}
         </div>
+
+        {showAddToPlaylist && (
+          <AddToPlaylistModal
+            song={showAddToPlaylist}
+            playlists={playlists}
+            onClose={() => setShowAddToPlaylist(null)}
+            onAdd={handleAddToPlaylist}
+            isDark={isDark}
+          />
+        )}
       </div>
     </main>
   );
 }
 
-function Section({ title, songs, favorites, onToggleFav, onPlay, isDark }: {
+function Section({ title, songs, favorites, onToggleFav, onAddToPlaylist, onPlay, isDark }: {
   title: string; songs: Song[]; favorites: string[];
   onToggleFav: (id: string) => void;
+  onAddToPlaylist: (song: Song) => void;
   onPlay: (s: Song) => void;
   isDark: boolean;
 }) {
@@ -219,7 +308,7 @@ function Section({ title, songs, favorites, onToggleFav, onPlay, isDark }: {
       <h2 className="mb-4 text-2xl font-bold">{title}</h2>
       <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-4">
         {songs.map((song) => (
-          <SongCard key={song._id} song={song} favorites={favorites} onToggleFav={onToggleFav} onPlay={onPlay} isDark={isDark} />
+          <SongCard key={song._id} song={song} favorites={favorites} onToggleFav={onToggleFav} onAddToPlaylist={onAddToPlaylist} onPlay={onPlay} isDark={isDark} />
         ))}
       </div>
     </div>

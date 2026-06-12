@@ -1,40 +1,41 @@
 import { connectDB } from "@/lib/mongodb";
-import User from "@/models/User";
+import Playlist from "@/models/Playlist";
 import { NextResponse } from "next/server";
 
-type Params = { params: Promise<{ playlistId: string }> };
-
-// PUT /api/auth/user-playlists/[playlistId]  { email, name?, songId?, action: 'rename'|'addSong'|'removeSong' }
-export async function PUT(req: Request, { params }: Params) {
-  const { playlistId } = await params;
-  const { email, name, songId, action } = await req.json();
-  await connectDB();
-
-  const user = await User.findOne({ email });
-  if (!user) return NextResponse.json({ success: false, message: "User not found" });
-
-  const playlist = user.playlists.id(playlistId);
-  if (!playlist) return NextResponse.json({ success: false, message: "Playlist not found" });
-
-  if (action === "rename" && name) playlist.name = name;
-  if (action === "addSong" && songId && !playlist.songs.includes(songId)) playlist.songs.push(songId);
-  if (action === "removeSong" && songId) playlist.songs = playlist.songs.filter((id: string) => id.toString() !== songId);
-
-  await user.save();
-  return NextResponse.json({ success: true, playlist });
+export async function GET(req: Request, { params }: { params: { playlistId: string } }) {
+  try {
+    await connectDB();
+    const playlist = await Playlist.findById(params.playlistId).populate("songs");
+    return NextResponse.json({ success: true, playlist });
+  } catch (error) {
+    return NextResponse.json({ success: false });
+  }
 }
 
-// DELETE /api/auth/user-playlists/[playlistId]?email=...
-export async function DELETE(req: Request, { params }: Params) {
-  const { playlistId } = await params;
-  const { searchParams } = new URL(req.url);
-  const email = searchParams.get("email");
-  await connectDB();
+export async function PUT(req: Request, { params }: { params: { playlistId: string } }) {
+  try {
+    await connectDB();
+    const { songId, action } = await req.json();
+    const playlist = await Playlist.findById(params.playlistId);
 
-  const user = await User.findOne({ email });
-  if (!user) return NextResponse.json({ success: false, message: "User not found" });
+    if (action === "add") {
+      if (!playlist.songs.includes(songId)) playlist.songs.push(songId);
+    } else {
+      playlist.songs = playlist.songs.filter((id: any) => id.toString() !== songId);
+    }
+    await playlist.save();
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false });
+  }
+}
 
-  user.playlists = user.playlists.filter((p: { _id: { toString: () => string } }) => p._id.toString() !== playlistId);
-  await user.save();
-  return NextResponse.json({ success: true, playlists: user.playlists });
+export async function DELETE(req: Request, { params }: { params: { playlistId: string } }) {
+  try {
+    await connectDB();
+    await Playlist.findByIdAndDelete(params.playlistId);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false });
+  }
 }

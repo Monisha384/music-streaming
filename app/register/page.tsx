@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
 
 export default function Register() {
   const router = useRouter();
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (localStorage.getItem("melodystream-user") === "true") {
+      router.push("/songs");
+    }
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -17,7 +23,7 @@ export default function Register() {
     const formData = new FormData(event.currentTarget);
 
     const res = await fetch("/api/auth/register", {
-          method: "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: formData.get("name") as string,
@@ -33,7 +39,7 @@ export default function Register() {
       setError(data.message || "Registration failed");
       return;
     }
-    localStorage.setItem("musicverse-user", "true");
+    localStorage.setItem("melodystream-user", "true");
     window.dispatchEvent(new Event("storage"));
     router.push("/songs");
   }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore,FormEvent} from "react";
+import { useEffect, useState, useSyncExternalStore, FormEvent } from "react";
 
 interface Song {
   _id: string;
@@ -21,7 +21,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const isAdmin = useSyncExternalStore(
     subscribeToStorage,
-    () => localStorage.getItem("musicverse-admin") === "true",
+    () => localStorage.getItem("melodystream-admin") === "true",
     () => false
   );
 
@@ -29,11 +29,17 @@ export default function AdminDashboard() {
   const [uploading, setUploading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
 
+  const [artistRequests, setArtistRequests] = useState<any[]>([]);
+
   useEffect(() => {
     if (!isAdmin) return;
     fetch("/api/auth/songs")
       .then((r) => r.json())
       .then((d) => { if (d.success) setSongs(d.songs); });
+
+    fetch("/api/auth/artists/request")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setArtistRequests(d.requests); });
   }, [isAdmin]);
 
   async function handleUpload(event: FormEvent<HTMLFormElement>) {
@@ -70,8 +76,8 @@ export default function AdminDashboard() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("musicverse-admin");
-    localStorage.removeItem("musicverse-user");
+    localStorage.removeItem("melodystream-admin");
+    localStorage.removeItem("melodystream-user");
     window.dispatchEvent(new Event("storage"));
     router.push("/login");
   }
@@ -90,7 +96,7 @@ export default function AdminDashboard() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.25em] text-amber-200">Admin panel</p>
-            <h1 className="mt-3 text-5xl font-bold">Song Upload Dashboard</h1>
+            <h1 className="mt-3 text-5xl font-bold">MelodyStream Admin Dashboard</h1>
           </div>
           <button onClick={handleLogout} className="rounded-full border border-white/20 px-5 py-3 font-semibold transition hover:border-red-400 hover:text-red-400">
             Logout
@@ -106,10 +112,10 @@ export default function AdminDashboard() {
             <input name="image" placeholder="Image URL" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
             <input name="album" placeholder="Album (optional)" className="mt-4 w-full rounded bg-zinc-800 p-3 outline-none ring-1 ring-white/10 focus:ring-amber-200" />
             <select name="language" className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
-              {["Tamil","English","Hindi","Telugu","Malayalam","Other"].map((l) => <option key={l}>{l}</option>)}
+              {["Tamil", "English", "Hindi", "Telugu", "Malayalam", "Other"].map((l) => <option key={l}>{l}</option>)}
             </select>
             <select name="genre" className="mt-4 w-full rounded bg-zinc-800 p-3 text-white outline-none ring-1 ring-white/10 focus:ring-amber-200">
-              {["Melody","Folk","Pop","Rock","Classical","Mass","Romantic","Other"].map((g) => <option key={g}>{g}</option>)}
+              {["Melody", "Folk", "Pop", "Rock", "Classical", "Mass", "Romantic", "Other"].map((g) => <option key={g}>{g}</option>)}
             </select>
             <input type="file" name="audio" accept=".mp3,audio/*" required className="mt-4 w-full rounded bg-zinc-800 p-3" />
             <button type="submit" disabled={uploading} className="mt-6 w-full rounded bg-amber-300 p-3 font-semibold text-black transition hover:bg-amber-200 disabled:opacity-50">
@@ -136,6 +142,47 @@ export default function AdminDashboard() {
                   <button onClick={() => handleDelete(song._id)} className="rounded px-3 py-1 text-sm text-red-400 hover:bg-red-400/10">
                     Delete
                   </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Artist Requests Section */}
+          <section className="rounded-lg bg-zinc-900 p-6 lg:ml-8 lg:col-span-2">
+            <h2 className="text-2xl font-bold mb-6">Artist Music Import Requests</h2>
+            <div className="grid gap-4">
+              {artistRequests.length === 0 && <p className="text-zinc-400">No pending requests.</p>}
+              {artistRequests.map((req) => (
+                <div key={req.id} className="flex items-center justify-between rounded-lg border border-white/10 bg-black/40 p-4">
+                  <div className="flex gap-4 items-center">
+                    <div className="h-12 w-12 rounded bg-zinc-800 flex items-center justify-center text-xl">🎵</div>
+                    <div>
+                      <p className="text-lg font-semibold">"{req.songTitle}" - Artist: {req.artistName}</p>
+                      <p className="text-xs text-zinc-400">Status: {req.status} • Genre: {req.genre}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {req.status === "pending" && (
+                      <>
+                        <button
+                          onClick={async () => {
+                            await fetch("/api/auth/artists/request", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ id: req.id, action: "approve" }),
+                            });
+                            // Refresh
+                            window.location.reload();
+                          }}
+                          className="rounded px-4 py-2 text-sm bg-emerald-400 text-black font-bold hover:bg-emerald-300 transition"
+                        >
+                          Approve
+                        </button>
+                        <button className="rounded px-4 py-2 text-sm border border-red-400 text-red-400 font-bold hover:bg-red-400/10 transition">Reject</button>
+                      </>
+                    )}
+                    {req.status === "approved" && <span className="text-emerald-400 font-bold">Approved</span>}
+                  </div>
                 </div>
               ))}
             </div>

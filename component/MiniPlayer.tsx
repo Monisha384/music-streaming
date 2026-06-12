@@ -2,6 +2,7 @@
 
 import { usePlayer, RepeatMode } from "@/context/PlayerContext";
 import { useTheme } from "@/context/ThemeContext";
+import { useState, useEffect } from "react";
 
 function formatTime(s: number) {
   if (!s || isNaN(s)) return "0:00";
@@ -13,10 +14,41 @@ function formatTime(s: number) {
 export default function MiniPlayer() {
   const {
     currentSong, isPlaying, volume, isMuted, repeatMode, isShuffled,
-    currentTime, duration, audioRef,
+    currentTime, duration, audioRef, isPremium,
     togglePlay, nextSong, prevSong, setVolume, toggleMute, setRepeatMode, toggleShuffle, setCurrentTime,
   } = usePlayer();
   const { isDark } = useTheme();
+  const [isLiked, setIsLiked] = useState(false);
+
+  useEffect(() => {
+    if (currentSong) {
+      const user = JSON.parse(localStorage.getItem("melodystream-user") || "{}");
+      if (user.id) {
+        fetch(`/api/auth/likes?userId=${user.id}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              setIsLiked(data.likedSongIds.includes(currentSong._id));
+            }
+          });
+      }
+    }
+  }, [currentSong]);
+
+  const toggleLike = async () => {
+    const user = JSON.parse(localStorage.getItem("melodystream-user") || "{}");
+    if (!user.id || !currentSong) return;
+
+    const res = await fetch("/api/auth/likes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id, songId: currentSong._id }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setIsLiked(data.liked);
+    }
+  };
 
   if (!currentSong) return null;
 
@@ -57,8 +89,19 @@ export default function MiniPlayer() {
           )}
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{currentSong.title}</p>
-            <p className={`truncate text-xs ${sub}`}>{currentSong.artist}</p>
+            <div className="flex items-center gap-2">
+              <p className={`truncate text-xs ${sub}`}>{currentSong.artist}</p>
+              {isPremium && (
+                <span className="flex-shrink-0 rounded bg-emerald-400 px-1 py-0.5 text-[8px] font-bold text-black">PREMIUM</span>
+              )}
+            </div>
           </div>
+          <button
+            onClick={toggleLike}
+            className={`ml-2 text-lg transition ${isLiked ? "text-emerald-400" : sub} hover:text-emerald-400`}
+          >
+            {isLiked ? "❤️" : "🤍"}
+          </button>
         </div>
 
         {/* Controls */}
