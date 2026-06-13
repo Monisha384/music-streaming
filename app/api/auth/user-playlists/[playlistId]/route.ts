@@ -2,21 +2,23 @@ import { connectDB } from "@/lib/mongodb";
 import Playlist from "@/models/Playlist";
 import { NextResponse } from "next/server";
 
-export async function GET(req: Request, { params }: { params: { playlistId: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ playlistId: string }> }) {
   try {
+    const { playlistId } = await params;
     await connectDB();
-    const playlist = await Playlist.findById(params.playlistId).populate("songs");
+    const playlist = await Playlist.findById(playlistId).populate("songs");
     return NextResponse.json({ success: true, playlist });
   } catch (error) {
     return NextResponse.json({ success: false });
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { playlistId: string } }) {
+export async function PUT(req: Request, { params }: { params: Promise<{ playlistId: string }> }) {
   try {
+    const { playlistId } = await params;
     await connectDB();
     const { songId, action } = await req.json();
-    const playlist = await Playlist.findById(params.playlistId);
+    const playlist = await Playlist.findById(playlistId);
 
     if (action === "add") {
       if (!playlist.songs.includes(songId)) playlist.songs.push(songId);
@@ -30,10 +32,11 @@ export async function PUT(req: Request, { params }: { params: { playlistId: stri
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { playlistId: string } }) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ playlistId: string }> }) {
   try {
+    const { playlistId } = await params;
     await connectDB();
-    await Playlist.findByIdAndDelete(params.playlistId);
+    await Playlist.findByIdAndDelete(playlistId);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false });

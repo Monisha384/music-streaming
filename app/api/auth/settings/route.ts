@@ -7,6 +7,7 @@ export async function POST(req: Request) {
         await connectDB();
         const { email, settings } = await req.json();
         const user = await User.findOneAndUpdate({ email }, { settings }, { new: true });
+        if (!user) return NextResponse.json({ success: false, message: "User not found" });
         return NextResponse.json({ success: true, settings: user.settings });
     } catch (error) {
         return NextResponse.json({ success: false });

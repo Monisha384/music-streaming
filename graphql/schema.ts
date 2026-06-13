@@ -67,6 +67,11 @@ export const typeDefs = `
   }
 
   type Query {
+    getUser(email: String!): User
+    getSongs(sort: String, search: String): [Song]
+    getProfile(email: String!): User
+    getArtists: [Artist]
+    getRecommendations(email: String!): [Song]
     songs(search: String, language: String, genre: String, mood: String, sort: String, page: Int, limit: Int): SongPage!
     song(_id: ID!): Song
     artists: [Artist]
@@ -75,6 +80,28 @@ export const typeDefs = `
     notifications(userEmail: String!): [Notification]
     analytics: AnalyticsData
     recommendations(userEmail: String, mood: String, songId: ID): [Song]
+  }
+
+  type User {
+    _id: ID!
+    email: String!
+    name: String
+    isPremium: Boolean
+    role: String
+    likedSongs: [Song]
+    playlists: [Playlist]
+    recentlyPlayed: [RecentlyPlayed]
+  }
+
+  type RecentlyPlayed {
+    song: Song
+    playedAt: String
+  }
+
+  type Playlist {
+    _id: ID!
+    name: String!
+    songs: [Song]
   }
 
   type SongPage {
@@ -93,6 +120,7 @@ export const typeDefs = `
     updateArtist(_id: ID!, name: String, bio: String, image: String, language: String, genre: String): Artist
     deleteArtist(_id: ID!): Boolean
 
+    playSong(email: String!, songId: ID!): Boolean
     addReview(songId: ID!, userEmail: String!, userName: String!, rating: Int!, comment: String): Review
     markNotificationsRead(userEmail: String!): Boolean
   }
