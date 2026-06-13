@@ -262,9 +262,9 @@ function SongsContent() {
         {/* Sections (only in All tab with no filters) */}
         {activeTab === "all" && !search && language === "All" && genre === "All" && (
           <>
-            <Section title="🔥 Trending Songs" songs={trending} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
-            <Section title="⭐ Top Rated" songs={topRated} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
-            <Section title="🆕 Recently Added" songs={recentlyAdded} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
+            <Section title="Trending Songs" songs={trending} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
+            <Section title="Top Rated" songs={topRated} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
+            <Section title="Recently Added" songs={recentlyAdded} favorites={favorites} onToggleFav={handleToggleFav} onAddToPlaylist={setShowAddToPlaylist} onPlay={handlePlay} isDark={isDark} />
             <h2 className="mt-10 mb-4 text-2xl font-bold">All Songs</h2>
           </>
         )}

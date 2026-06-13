@@ -74,7 +74,7 @@ export default function AdminDashboard() {
         setError(data.message || "Action failed");
         return;
       }
-
+console.log(editingSong);
       if (editingSong) {
         setSongs((prev) => prev.map((s) => (s._id === data.song._id ? data.song : s)));
         setEditingSong(null);

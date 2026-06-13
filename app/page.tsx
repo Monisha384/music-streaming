@@ -153,7 +153,7 @@ export default function Home() {
         <div className="grid gap-8 md:grid-cols-2">
           <div className={`rounded-xl p-6 ${cardBg}`}>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">🔥 Trending Now</h2>
+              <h2 className="text-xl font-bold">Trending Now</h2>
               <Link href="/songs?sort=trending" className="text-sm text-emerald-400 hover:text-emerald-300">View all</Link>
             </div>
             <div className="grid gap-1">
@@ -164,7 +164,7 @@ export default function Home() {
 
           <div className={`rounded-xl p-6 ${cardBg}`}>
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">🆕 Recently Added</h2>
+              <h2 className="text-xl font-bold">Recently Added</h2>
               <Link href="/songs?sort=recent" className="text-sm text-emerald-400 hover:text-emerald-300">View all</Link>
             </div>
             <div className="grid gap-1">
@@ -201,7 +201,7 @@ export default function Home() {
         </div>
       </section>
 
-    
+
     </main>
   );
 }
